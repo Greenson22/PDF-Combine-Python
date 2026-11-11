@@ -8,7 +8,7 @@ from PyPDF2 import PdfReader, PdfWriter, Transformation, PageObject
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton,
                              QListWidget, QFileDialog, QMessageBox, QHBoxLayout,
                              QTabWidget, QLabel, QComboBox, QGroupBox, QGridLayout,
-                             QDoubleSpinBox, QInputDialog)
+                             QDoubleSpinBox, QInputDialog, QSplitter, QSizePolicy)
 from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QRectF, QSize
 from PyQt6.QtGui import QPainter, QColor, QPen, QPixmap, QFont
 
@@ -127,7 +127,8 @@ class PagePreview(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(260, 380)
+        self.setMinimumSize(220, 200)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.paper_pt = None
         self.margin_pt = (0.0, 0.0, 0.0, 0.0)
         self.image_path = None
@@ -526,12 +527,12 @@ class PDFToolbox(QWidget):
 
     def initUI(self):
         self.setWindowTitle('Python PDF Toolbox - Custom Paper Size & Margin Edition')
-        self.setGeometry(100, 100, 1050, 760)
+        self.setGeometry(100, 100, 1100, 720)
 
         self.main_layout = QVBoxLayout()
         self.tabs = QTabWidget()
 
-        self.tabs.addTab(self.create_merger_tab(), "Merge PDF & Images")
+        self.tabs.addTab(self.create_merger_tab(), "Merge PDF + Images")
         self.tabs.addTab(self.create_converter_tab(), "Bulk Image to PDF")
 
         self.main_layout.addWidget(self.tabs)
@@ -574,21 +575,26 @@ class PDFToolbox(QWidget):
         widget = QWidget()
         outer = QVBoxLayout(widget)
 
-        body = QHBoxLayout()
-        body.addWidget(self._build_list_panel(list_widget, add_filter,
-                                              extra_buttons, nav=nav), 1)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        splitter.addWidget(self._build_list_panel(list_widget, add_filter,
+                                                  extra_buttons, nav=nav))
 
         side = QWidget()
-        side.setFixedWidth(300)
+        side.setMinimumWidth(270)
+        side.setMaximumWidth(460)
         side_layout = QVBoxLayout(side)
         side_layout.setContentsMargins(0, 0, 0, 0)
         settings = PaperSettings(key)
         preview = PagePreview()
         side_layout.addWidget(settings)
         side_layout.addWidget(preview, 1)
-        body.addWidget(side)
+        splitter.addWidget(side)
 
-        outer.addLayout(body, 1)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 0)
+        splitter.setSizes([760, 320])
+        outer.addWidget(splitter, 1)
 
         btn_run = QPushButton(run_text)
         btn_run.setStyleSheet(
