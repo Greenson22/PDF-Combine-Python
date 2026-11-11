@@ -1,0 +1,156 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.12"
+  PYINSTALLER_VERSION: "6.11.1"
+
+jobs:
+  windows-exe:
+    name: Windows portable EXE
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Tentukan versi
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          printf '%s\n' "$VERSION" > VERSION
+          echo "Versi build: $VERSION"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Build EXE portable
+        run: pyinstaller --clean --noconfirm packaging/pdf-combine.spec
+
+      - name: Cek hasil build
+        shell: bash
+        run: ls -lh dist/PDF-Combine.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDF-Combine-windows-x64
+          path: dist/PDF-Combine.exe
+          if-no-files-found: error
+
+  linux-deb:
+    name: Linux DEB (Ubuntu 22.04+)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Tentukan versi
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          printf '%s\n' "$VERSION" > VERSION
+          echo "Versi build: $VERSION"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Build aplikasi (onedir)
+        run: pyinstaller --clean --noconfirm packaging/pdf-combine.spec
+
+      - name: Rakit paket .deb
+        run: bash packaging/build_deb.sh "$VERSION" dist/pdf-combine
+
+      - name: Cek isi paket
+        run: |
+          ls -lh dist/*.deb
+          dpkg-deb -I dist/*.deb
+          dpkg-deb -c dist/*.deb | head -30
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDF-Combine-linux-deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: github.ref_type == 'tag'
+    needs: [windows-exe, linux-deb]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+
+      - name: Kumpulkan file dan checksum
+        run: |
+          mkdir -p assets-release
+          cp release/PDF-Combine-windows-x64/PDF-Combine.exe assets-release/
+          cp release/PDF-Combine-linux-deb/*.deb assets-release/
+          cd assets-release
+          sha256sum * > SHA256SUMS
+          ls -lh
+
+      - name: Buat Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PDF Combine ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            assets-release/PDF-Combine.exe
+            assets-release/*.deb
+            assets-release/SHA256SUMS
+          body: |
+            ## Unduhan
+
+            - **PDF-Combine.exe** — portable, cukup jalankan langsung (tidak perlu install Python).
+            - **pdf-combine_*_amd64.deb** — untuk Ubuntu 22.04 ke atas, sudah termasuk ikon dan entri menu aplikasi.
+
+            ### Install di Ubuntu
+
+            ```bash
+            sudo apt install ./pdf-combine_*_amd64.deb
+            ```
+
+            Setelah itu buka **PDF Combine** dari daftar aplikasi, atau jalankan `pdf-combine` di terminal.
+
+            ### Checksum
+
+            File `SHA256SUMS` disertakan untuk memverifikasi unduhan.

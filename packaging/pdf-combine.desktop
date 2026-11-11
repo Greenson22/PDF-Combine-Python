@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=PDF Combine
+Comment=Gabungkan PDF dan konversi gambar ke PDF
+Exec=/opt/pdf-combine/pdf-combine
+Icon=pdf-combine
+Terminal=false
+Categories=Office;Utility;
+Keywords=PDF;merge;combine;image;convert;gabung;konversi;
+StartupNotify=true
+StartupWMClass=pdf-combine

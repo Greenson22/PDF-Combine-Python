@@ -1,2 +1,9 @@
 .env
-__pycache__
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.deb
+*.spec.bak
+.idea/
+.vscode/

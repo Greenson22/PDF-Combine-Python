@@ -10,7 +10,10 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton,
                              QTabWidget, QLabel, QComboBox, QGroupBox, QGridLayout,
                              QDoubleSpinBox, QInputDialog, QSplitter, QSizePolicy)
 from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QRectF, QSize
-from PyQt6.QtGui import QPainter, QColor, QPen, QPixmap, QFont
+from PyQt6.QtGui import QPainter, QColor, QPen, QPixmap, QFont, QIcon
+
+from about_dialog import AboutDialog
+from app_info import APP_ID, APP_ORG, app_icon_path
 
 # Definisi ukuran kertas dalam satuan milimeter (Lebar, Tinggi)
 # None berarti halaman mengikuti ukuran asli gambar.
@@ -526,7 +529,8 @@ class PDFToolbox(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('Python PDF Toolbox - Custom Paper Size & Margin Edition')
+        self.setWindowTitle('PDF Combine - Gabung PDF & Konversi Gambar')
+        self.setWindowIcon(QIcon(app_icon_path()))
         self.setGeometry(100, 100, 1100, 720)
 
         self.main_layout = QVBoxLayout()
@@ -535,11 +539,31 @@ class PDFToolbox(QWidget):
         self.tabs.addTab(self.create_merger_tab(), "Merge PDF + Images")
         self.tabs.addTab(self.create_converter_tab(), "Bulk Image to PDF")
 
+        self.btn_about = QPushButton('ℹ️ Tentang')
+        self.btn_about.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_about.setStyleSheet(
+            "QPushButton {"
+            "  color: #283593;"
+            "  background: transparent;"
+            "  border: 1px solid rgba(40, 53, 147, 0.35);"
+            "  border-radius: 14px;"
+            "  padding: 4px 14px;"
+            "  font-weight: 600;"
+            "  margin: 3px 6px 3px 0;"
+            "}"
+            "QPushButton:hover { background: rgba(40, 53, 147, 0.08); }"
+        )
+        self.btn_about.clicked.connect(self.show_about)
+        self.tabs.setCornerWidget(self.btn_about, Qt.Corner.TopRightCorner)
+
         self.main_layout.addWidget(self.tabs)
         self.setLayout(self.main_layout)
         self.tabs.currentChanged.connect(lambda _: self.update_preview(self._tab_key()))
         self.update_preview("merge")
         self.update_preview("converter")
+
+    def show_about(self):
+        AboutDialog(self).exec()
 
     def _build_list_panel(self, list_widget, add_filter, extra_buttons, nav=True):
         panel = QWidget()
@@ -768,7 +792,20 @@ class PDFToolbox(QWidget):
 
 
 if __name__ == '__main__':
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+        except Exception:
+            pass
+
     app = QApplication(sys.argv)
+    app.setApplicationName('PDF Combine')
+    app.setOrganizationName(APP_ORG)
+    icon = QIcon(app_icon_path())
+    if not icon.isNull():
+        app.setWindowIcon(icon)
+
     window = PDFToolbox()
     window.show()
     sys.exit(app.exec())
